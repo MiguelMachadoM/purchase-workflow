@@ -1,9 +1,10 @@
 # Copyright 2025 Dixmit
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
-from odoo.tests import common
+from odoo.tests import common, tagged
 
 
+@tagged("post_install", "-at_install")
 class TestPurchaseOrderLine(common.TransactionCase):
     @classmethod
     def setUpClass(cls):
@@ -36,9 +37,30 @@ class TestPurchaseOrderLine(common.TransactionCase):
             }
         )
 
+        picking_type = cls.env["stock.picking.type"].search(
+            [
+                ("code", "=", "incoming"),
+                ("warehouse_id.company_id", "=", cls.env.company.id),
+            ],
+            limit=1,
+        )
+        if not picking_type:
+            warehouse = cls.env["stock.warehouse"].search(
+                [("company_id", "=", cls.env.company.id)], limit=1
+            )
+            if not warehouse:
+                warehouse = cls.env["stock.warehouse"].create(
+                    {
+                        "name": "Test WH",
+                        "code": "TWH",
+                        "company_id": cls.env.company.id,
+                    }
+                )
+            picking_type = warehouse.in_type_id
         cls.purchase_order = cls.env["purchase.order"].create(
             {
                 "partner_id": cls.partner_id.id,
+                "picking_type_id": picking_type.id,
             }
         )
 

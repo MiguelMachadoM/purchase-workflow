@@ -6,8 +6,10 @@ import datetime
 
 import odoo.tests.common as common
 from odoo import Command, fields
+from odoo.tests import tagged
 
 
+@tagged("post_install", "-at_install")
 class TestPurchaseLastPriceInfo(common.TransactionCase):
     def setUp(self):
         super().setUp()

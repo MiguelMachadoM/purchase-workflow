@@ -4,11 +4,12 @@
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl.html).
 
 from odoo import fields
-from odoo.tests import Form
+from odoo.tests import Form, tagged
 
 from odoo.addons.base.tests.common import BaseCommon
 
 
+@tagged("post_install", "-at_install")
 class TestPurchaseOrderUninvoiceAmount(BaseCommon):
     @classmethod
     def setUpClass(cls):
@@ -28,16 +29,6 @@ class TestPurchaseOrderUninvoiceAmount(BaseCommon):
         )
         # Category
         cls.product_categ = cls.product_category_model.create({"name": "Test category"})
-        cls.uom_categ = cls.env["uom.category"].create({"name": "Category 1"})
-        cls.uom1 = cls.env["uom.uom"].create(
-            {
-                "name": "UOM 1",
-                "category_id": cls.uom_categ.id,
-                "factor": 1,
-                "active": True,
-                "uom_type": "reference",
-            }
-        )
         # Products
         cls.product_category = cls.env["product.category"].create(
             {"name": "Test Product category"}
@@ -55,15 +46,39 @@ class TestPurchaseOrderUninvoiceAmount(BaseCommon):
 
     def _create_purchase(self, product_qty=1, product_received=1):
         """Create a purchase order."""
+        picking_type = self.env["stock.picking.type"].search(
+            [
+                ("code", "=", "incoming"),
+                ("warehouse_id.company_id", "=", self.company.id),
+            ],
+            limit=1,
+        )
+        if not picking_type:
+            warehouse = self.env["stock.warehouse"].search(
+                [("company_id", "=", self.company.id)], limit=1
+            )
+            if not warehouse:
+                warehouse = self.env["stock.warehouse"].create(
+                    {
+                        "name": "Test WH Uninv",
+                        "code": "TWU",
+                        "company_id": self.company.id,
+                    }
+                )
+            picking_type = warehouse.in_type_id
         purchase = self.purchase_order_model.create(
-            {"company_id": self.company.id, "partner_id": self.partner.id}
+            {
+                "company_id": self.company.id,
+                "partner_id": self.partner.id,
+                "picking_type_id": picking_type.id,
+            }
         )
         purchase_line_1 = self.purchase_order_line_model.create(
             {
                 "name": self.product_1.name,
                 "product_id": self.product_1.id,
                 "product_qty": product_qty,
-                "product_uom_id": self.product_1.uom_po_id.id,
+                "product_uom_id": self.product_1.uom_id.id,
                 "price_unit": 100.0,
                 "date_planned": fields.Date.today(),
                 "order_id": purchase.id,
